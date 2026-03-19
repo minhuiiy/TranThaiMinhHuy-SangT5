@@ -1,4 +1,4 @@
-name: Hello World
+name: Thử nghiệm đọc file README
 
 on:
   push:
