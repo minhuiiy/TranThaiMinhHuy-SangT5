@@ -7,8 +7,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      # 1. Checkout code
+      # 1. Checkout
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -16,44 +17,36 @@ jobs:
       - name: Validate secrets
         run: |
           if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
-            echo "❌ DOCKER_USERNAME rỗng"
-            exit 1
-          fi
+            echo "❌ DOCKER_USERNAME rỗng"; exit 1; fi
           if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
-            echo "❌ DOCKER_PASSWORD rỗng"
-            exit 1
-          fi
+            echo "❌ DOCKER_PASSWORD rỗng"; exit 1; fi
           if [ -z "${{ secrets.DEPLOY_URL }}" ]; then
-            echo "❌ DEPLOY_URL rỗng"
-            exit 1
-          fi
+            echo "❌ DEPLOY_URL rỗng"; exit 1; fi
 
-      # 3. Login Docker Hub
+      # 3. Login Docker
       - name: Login Docker Hub
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login \
           -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # 4. Build Docker image (KHÔNG lỗi format)
+      # 4. Build
       - name: Build Docker image
         run: |
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/duanjava:latest"
-          echo "Build image: $IMAGE"
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/duaanjava:latest"
+          echo "Build: $IMAGE"
           docker build -t "$IMAGE" .
 
-      # 5. Push Docker image
+      # 5. Push
       - name: Push Docker image
         run: |
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/$/duanjava:latest"
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/duaanjava:latest"
           docker push "$IMAGE"
 
       # 6. Deploy
-      - name: Deploy to DevOps Classroom
+      - name: Deploy
         run: |
-          REPO="${{ secrets.DOCKER_USERNAME }}/duanjava"
+          REPO="${{ secrets.DOCKER_USERNAME }}/duaanjava"
           CONTAINER_PORT=80
-
-          echo "Deploy repo: $REPO"
 
           RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
           "${{ secrets.DEPLOY_URL }}?repo=$REPO&tag=latest&slot=1&container_port=$CONTAINER_PORT")
@@ -61,17 +54,11 @@ jobs:
           BODY=$(echo "$RESPONSE" | sed "$d")
           CODE=$(echo "$RESPONSE" | tail -n1)
 
-          echo "HTTP CODE: $CODE"
+          echo "HTTP: $CODE"
 
           if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
-            echo "❌ Deploy thất bại"
-            echo "::group::Chi tiết lỗi"
-            echo "$BODY"
-            echo "::endgroup::"
+            echo "❌ Deploy fail"
             exit 1
           fi
 
-          echo "✅ Deploy thành công"
-          echo "::group::Response"
-          echo "$BODY"
-          echo "::endgroup::"
+          echo "✅ Deploy success"
