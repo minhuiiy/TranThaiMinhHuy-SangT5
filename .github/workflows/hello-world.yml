@@ -1,18 +1,52 @@
-name: Thử nghiệm đọc file README
+name: CI/CD Docker Deploy
 
 on:
   push:
-    branches: [ "main" ]
-jobs: 
-  thuc_hanh_doc_file:
+    branches: ["main"]
+
+jobs:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Bước 1 - Xin Chào
-        run: echo "Hello World"
+      # 1. Lấy source code
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Bước 2 - Tải code
-        uses: actions/checkout@v6.0.2
+      # 2. Login Docker Hub
+      - name: Login Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Bước 3 - Đọc file
-        run: cat README.md
+      # 3. Build Docker image
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/ci-cd-app:latest .
+
+      # 4. Push Docker image
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/ci-cd-app:latest
+
+      # 5. Deploy lên DevOps Classroom
+      - name: Deploy to DevOps Classroom
+        run: |
+          REPO="${{ secrets.DOCKER_USERNAME }}/ci-cd-app"
+          CONTAINER_PORT=80
+
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "${{ secrets.DEPLOY_URL }}?repo=$REPO&tag=latest&slot=1&container_port=$CONTAINER_PORT")
+
+          BODY=$(echo "$RESPONSE" | sed "$d")
+          CODE=$(echo "$RESPONSE" | tail -n1)
+
+          echo "Webhook HTTP: $CODE"
+
+          if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
+            echo "❌ Deploy thất bại!"
+            echo "::group::Chi tiết webhook JSON"
+            echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          echo "✅ Deploy thành công."
+          echo "::group::Chi tiết webhook JSON"
+          echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
+          echo "::endgroup::"
