@@ -9,26 +9,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Lấy source code
+      # 1. Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Login Docker Hub
+      # 2. Validate secrets (tránh lỗi rỗng)
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ DOCKER_USERNAME bị rỗng"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "❌ DOCKER_PASSWORD bị rỗng"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_URL }}" ]; then
+            echo "❌ DEPLOY_URL bị rỗng"
+            exit 1
+          fi
+
+      # 3. Login Docker Hub
       - name: Login Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # 3. Build Docker image
+      # 4. Build Docker image (FIX repo đúng của bạn)
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/ci-cd-app:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/duaanjava:latest .
 
-      # 4. Push Docker image
+      # 5. Push Docker image
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/ci-cd-app:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/duaanjava:latest
 
-      # 5. Deploy lên DevOps Classroom
+      # 6. Deploy lên DevOps Classroom (slot S1)
       - name: Deploy to DevOps Classroom
         run: |
-          REPO="${{ secrets.DOCKER_USERNAME }}/ci-cd-app"
+          REPO="${{ secrets.DOCKER_USERNAME }}/duaanjava"
           CONTAINER_PORT=80
 
           RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "${{ secrets.DEPLOY_URL }}?repo=$REPO&tag=latest&slot=1&container_port=$CONTAINER_PORT")
