@@ -37,20 +37,20 @@ jobs:
       # 4. Build Docker image (KHÔNG lỗi format)
       - name: Build Docker image
         run: |
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/duanjava/general:latest"
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/duanjava:latest"
           echo "Build image: $IMAGE"
           docker build -t "$IMAGE" .
 
       # 5. Push Docker image
       - name: Push Docker image
         run: |
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/$/duanjava/general:latest"
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/$/duanjava:latest"
           docker push "$IMAGE"
 
       # 6. Deploy
       - name: Deploy to DevOps Classroom
         run: |
-          REPO="${{ secrets.DOCKER_USERNAME }}/duanjava/general"
+          REPO="${{ secrets.DOCKER_USERNAME }}/duanjava"
           CONTAINER_PORT=80
 
           echo "Deploy repo: $REPO"
