@@ -8,61 +8,74 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_NAME: duaanjava
+
     steps:
       # 1. Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Validate secrets (tránh lỗi rỗng)
+      # 2. Validate secrets
       - name: Validate secrets
         run: |
           if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
-            echo "❌ DOCKER_USERNAME bị rỗng"
+            echo "❌ DOCKER_USERNAME rỗng"
             exit 1
           fi
           if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
-            echo "❌ DOCKER_PASSWORD bị rỗng"
+            echo "❌ DOCKER_PASSWORD rỗng"
             exit 1
           fi
           if [ -z "${{ secrets.DEPLOY_URL }}" ]; then
-            echo "❌ DEPLOY_URL bị rỗng"
+            echo "❌ DEPLOY_URL rỗng"
             exit 1
           fi
 
       # 3. Login Docker Hub
       - name: Login Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login \
+          -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # 4. Build Docker image (FIX repo đúng của bạn)
+      # 4. Build Docker image (KHÔNG lỗi format)
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/duaanjava:latest .
+        run: |
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          echo "Build image: $IMAGE"
+          docker build -t "$IMAGE" .
 
       # 5. Push Docker image
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/duaanjava:latest
+        run: |
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          docker push "$IMAGE"
 
-      # 6. Deploy lên DevOps Classroom (slot S1)
+      # 6. Deploy
       - name: Deploy to DevOps Classroom
         run: |
-          REPO="${{ secrets.DOCKER_USERNAME }}/duaanjava"
+          REPO="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}"
           CONTAINER_PORT=80
 
-          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "${{ secrets.DEPLOY_URL }}?repo=$REPO&tag=latest&slot=1&container_port=$CONTAINER_PORT")
+          echo "Deploy repo: $REPO"
+
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
+          "${{ secrets.DEPLOY_URL }}?repo=$REPO&tag=latest&slot=1&container_port=$CONTAINER_PORT")
 
           BODY=$(echo "$RESPONSE" | sed "$d")
           CODE=$(echo "$RESPONSE" | tail -n1)
 
-          echo "Webhook HTTP: $CODE"
+          echo "HTTP CODE: $CODE"
 
           if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
-            echo "❌ Deploy thất bại!"
-            echo "::group::Chi tiết webhook JSON"
-            echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
+            echo "❌ Deploy thất bại"
+            echo "::group::Chi tiết lỗi"
+            echo "$BODY"
             echo "::endgroup::"
             exit 1
           fi
 
-          echo "✅ Deploy thành công."
-          echo "::group::Chi tiết webhook JSON"
-          echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
+          echo "✅ Deploy thành công"
+          echo "::group::Response"
+          echo "$BODY"
           echo "::endgroup::"
